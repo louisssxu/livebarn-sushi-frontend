@@ -1,10 +1,15 @@
 "use client";
 
+import { Loader2, Pause, Play, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { OrderStatusItem, StatusKey } from "@/lib/types";
 
 interface OrderCardProps {
   order: OrderStatusItem;
   status: StatusKey;
+  compact?: boolean;
   onPause?: (orderId: number) => void;
   onResume?: (orderId: number) => void;
   onCancel?: (orderId: number) => void;
@@ -14,6 +19,7 @@ interface OrderCardProps {
 export function OrderCard({
   order,
   status,
+  compact = false,
   onPause,
   onResume,
   onCancel,
@@ -30,85 +36,162 @@ export function OrderCard({
       status === "resumed") &&
     onCancel;
 
+  const timeLabel =
+    status === "created" || status === "resumed" ? "wait" : "cook time";
+
+  if (compact) {
+    return (
+      <div
+        className={cn(
+          "flex items-center gap-2 rounded-lg border bg-card px-2.5 py-2 text-sm",
+          status === "in-progress" && "border-primary/20",
+        )}
+      >
+        <span className="shrink-0 font-mono text-xs font-medium">
+          #{order.orderId}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground tabular-nums">
+          {order.timeSpent}s {timeLabel}
+        </span>
+        {status === "in-progress" && (
+          <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-amber-500" />
+        )}
+        {(canPause || canResume || canCancel) && (
+          <div className="flex shrink-0 gap-0.5">
+            {canPause && (
+              <IconAction
+                label="Pause"
+                loading={isLoading}
+                onClick={() => onPause(order.orderId)}
+              >
+                <Pause />
+              </IconAction>
+            )}
+            {canResume && (
+              <IconAction
+                label="Resume"
+                loading={isLoading}
+                onClick={() => onResume(order.orderId)}
+              >
+                <Play />
+              </IconAction>
+            )}
+            {canCancel && (
+              <IconAction
+                label="Cancel"
+                variant="destructive"
+                loading={isLoading}
+                onClick={() => onCancel(order.orderId)}
+              >
+                <X />
+              </IconAction>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <article className="rounded-lg border border-stone-600/50 bg-stone-800/60 p-3">
+    <div
+      className={cn(
+        "shrink-0 rounded-lg border bg-card p-3",
+        status === "in-progress" && "border-primary/20 ring-1 ring-primary/10",
+      )}
+    >
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="font-mono text-sm font-semibold text-stone-100">
-            #{order.orderId}
-          </p>
-          <p className="mt-1 text-xs text-stone-400">
-            {status === "created" || status === "resumed"
-              ? "Waiting"
-              : "Time spent"}
-            :{" "}
-            <span className="tabular-nums text-stone-300">
+        <div className="min-w-0 space-y-1">
+          <p className="font-mono text-sm font-medium">Order #{order.orderId}</p>
+          <p className="text-xs text-muted-foreground">
+            {timeLabel}:{" "}
+            <span className="font-medium text-foreground tabular-nums">
               {order.timeSpent}s
             </span>
           </p>
         </div>
         {status === "in-progress" && (
-          <span className="inline-flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-amber-400" />
+          <Badge variant="outline" className="shrink-0 gap-1">
+            <span className="size-1.5 animate-pulse rounded-full bg-amber-500" />
+            Active
+          </Badge>
         )}
       </div>
 
       {(canPause || canResume || canCancel) && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {canPause && (
-            <ActionButton
-              label="Pause"
-              variant="sky"
-              loading={isLoading}
+            <Button
+              variant="outline"
+              size="xs"
+              disabled={isLoading}
               onClick={() => onPause(order.orderId)}
-            />
+            >
+              {isLoading ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <Pause data-icon="inline-start" />
+              )}
+              Pause
+            </Button>
           )}
           {canResume && (
-            <ActionButton
-              label="Resume"
-              variant="violet"
-              loading={isLoading}
+            <Button
+              size="xs"
+              disabled={isLoading}
               onClick={() => onResume(order.orderId)}
-            />
+            >
+              {isLoading ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <Play data-icon="inline-start" />
+              )}
+              Resume
+            </Button>
           )}
           {canCancel && (
-            <ActionButton
-              label="Cancel"
-              variant="rose"
-              loading={isLoading}
+            <Button
+              variant="destructive"
+              size="xs"
+              disabled={isLoading}
               onClick={() => onCancel(order.orderId)}
-            />
+            >
+              {isLoading ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <X data-icon="inline-start" />
+              )}
+              Cancel
+            </Button>
           )}
         </div>
       )}
-    </article>
+    </div>
   );
 }
 
-function ActionButton({
+function IconAction({
   label,
-  variant,
+  variant = "outline",
   loading,
   onClick,
+  children,
 }: {
   label: string;
-  variant: "sky" | "violet" | "rose";
+  variant?: "outline" | "destructive";
   loading: boolean;
   onClick: () => void;
+  children: React.ReactNode;
 }) {
-  const colors = {
-    sky: "border-sky-600/50 text-sky-300 hover:bg-sky-500/15",
-    violet: "border-violet-600/50 text-violet-300 hover:bg-violet-500/15",
-    rose: "border-rose-600/50 text-rose-300 hover:bg-rose-500/15",
-  };
-
   return (
-    <button
+    <Button
       type="button"
+      variant={variant}
+      size="icon-xs"
+      title={label}
       disabled={loading}
       onClick={onClick}
-      className={`rounded border px-2 py-1 text-[11px] font-medium transition disabled:opacity-50 ${colors[variant]}`}
     >
-      {loading ? "…" : label}
-    </button>
+      {loading ? <Loader2 className="animate-spin" /> : children}
+    </Button>
   );
 }

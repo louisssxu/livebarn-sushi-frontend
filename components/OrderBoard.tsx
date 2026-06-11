@@ -1,8 +1,23 @@
 "use client";
 
+import { useMemo } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { STATUS_COLUMNS } from "@/lib/constants";
-import type { OrdersByStatus, StatusKey } from "@/lib/types";
-import { OrderCard } from "./OrderCard";
+import type { OrderStatusItem, OrdersByStatus } from "@/lib/types";
+import { StatusColumn } from "./StatusColumn";
+
+const ACTIVE_KEYS = new Set(["created", "resumed", "in-progress", "paused"]);
+const HISTORY_KEYS = new Set(["completed", "cancelled"]);
+
+function sortOrders(items: OrderStatusItem[]): OrderStatusItem[] {
+  return [...items].sort((a, b) => a.orderId - b.orderId);
+}
 
 interface OrderBoardProps {
   orders: OrdersByStatus;
@@ -19,65 +34,70 @@ export function OrderBoard({
   onCancel,
   actionLoading,
 }: OrderBoardProps) {
-  const totalOrders = STATUS_COLUMNS.reduce(
-    (sum, col) => sum + (orders[col.key]?.length ?? 0),
-    0,
-  );
+  const { totalOrders, activeCount } = useMemo(() => {
+    let total = 0;
+    let active = 0;
+    for (const col of STATUS_COLUMNS) {
+      const count = orders[col.key]?.length ?? 0;
+      total += count;
+      if (ACTIVE_KEYS.has(col.key)) active += count;
+    }
+    return { totalOrders: total, activeCount: active };
+  }, [orders]);
+
+  const activeColumns = STATUS_COLUMNS.filter((c) => ACTIVE_KEYS.has(c.key));
+  const historyColumns = STATUS_COLUMNS.filter((c) => HISTORY_KEYS.has(c.key));
 
   return (
-    <section>
-      <div className="mb-4 flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-amber-400/90">
-          Order Board
-        </h2>
-        <span className="text-xs text-stone-500">{totalOrders} total</span>
-      </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Order board</CardTitle>
+        <CardDescription>
+          {totalOrders} total orders · {activeCount} active in the kitchen
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div>
+          <p className="mb-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Active pipeline
+          </p>
+          <div className="grid h-[min(52vh,28rem)] grid-cols-2 gap-3 sm:grid-cols-4">
+            {activeColumns.map((col) => (
+              <StatusColumn
+                key={col.key}
+                statusKey={col.key}
+                label={col.label}
+                dotColor={col.dotColor}
+                items={sortOrders(orders[col.key] ?? [])}
+                compact={col.key === "created" || col.key === "resumed"}
+                onPause={onPause}
+                onResume={onResume}
+                onCancel={onCancel}
+                actionLoading={actionLoading}
+              />
+            ))}
+          </div>
+        </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {STATUS_COLUMNS.map((col) => {
-          const items = orders[col.key] ?? [];
-          return (
-            <div
-              key={col.key}
-              className={`flex min-h-[200px] flex-col rounded-xl border ${col.border} bg-stone-900/60`}
-            >
-              <header
-                className={`flex items-center justify-between rounded-t-xl border-b px-3 py-2.5 ${col.color} ${col.border}`}
-              >
-                <span className="text-xs font-semibold uppercase tracking-wider">
-                  {col.label}
-                </span>
-                <span className="rounded-full bg-black/20 px-2 py-0.5 text-[10px] font-bold tabular-nums">
-                  {items.length}
-                </span>
-              </header>
-              <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2 max-h-[420px]">
-                {items.length === 0 ? (
-                  <p className="py-6 text-center text-xs text-stone-600">Empty</p>
-                ) : (
-                  items.map((order) => (
-                    <OrderCard
-                      key={`${col.key}-${order.orderId}`}
-                      order={order}
-                      status={col.key as StatusKey}
-                      onPause={col.key === "in-progress" ? onPause : undefined}
-                      onResume={col.key === "paused" ? onResume : undefined}
-                      onCancel={
-                        ["created", "in-progress", "paused", "resumed"].includes(
-                          col.key,
-                        )
-                          ? onCancel
-                          : undefined
-                      }
-                      actionLoading={actionLoading}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
+        <div>
+          <p className="mb-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            History
+          </p>
+          <div className="grid h-[min(32vh,18rem)] grid-cols-1 gap-3 sm:grid-cols-2">
+            {historyColumns.map((col) => (
+              <StatusColumn
+                key={col.key}
+                statusKey={col.key}
+                label={col.label}
+                dotColor={col.dotColor}
+                items={sortOrders(orders[col.key] ?? [])}
+                compact
+                actionLoading={actionLoading}
+              />
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

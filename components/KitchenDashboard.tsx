@@ -1,6 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Activity, Wifi, WifiOff } from "lucide-react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
   cancelOrder,
   createOrder,
@@ -11,31 +15,17 @@ import {
 } from "@/lib/api";
 import { POLL_INTERVAL_MS } from "@/lib/constants";
 import type { Analytics, OrdersByStatus } from "@/lib/types";
-import { AnalyticsPanel } from "./AnalyticsPanel";
+import { AnalyticsSection } from "./analytics-section";
 import { ChefStation } from "./ChefStation";
+import { ModeToggle } from "./mode-toggle";
 import { NewOrderForm } from "./NewOrderForm";
 import { OrderBoard } from "./OrderBoard";
-import { ToastStack, type ToastMessage } from "./Toast";
 
 export function KitchenDashboard() {
   const [orders, setOrders] = useState<OrdersByStatus>({});
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [connected, setConnected] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const toastId = useRef(0);
-
-  const addToast = useCallback((text: string, type: ToastMessage["type"]) => {
-    const id = ++toastId.current;
-    setToasts((prev) => [...prev, { id, text, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4000);
-  }, []);
-
-  const dismissToast = useCallback((id: number) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -60,10 +50,12 @@ export function KitchenDashboard() {
   async function handleCreate(sushiName: string) {
     try {
       const res = await createOrder(sushiName);
-      addToast(`Order #${res.order.id} created`, "success");
+      toast.success(`Order #${res.order.id} created`);
       await refresh();
     } catch (err) {
-      addToast(err instanceof Error ? err.message : "Failed to create order", "error");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create order",
+      );
     }
   }
 
@@ -74,10 +66,10 @@ export function KitchenDashboard() {
     setActionLoading(orderId);
     try {
       const res = await action();
-      addToast(res.msg, "success");
+      toast.success(res.msg);
       await refresh();
     } catch (err) {
-      addToast(err instanceof Error ? err.message : "Action failed", "error");
+      toast.error(err instanceof Error ? err.message : "Action failed");
     } finally {
       setActionLoading(null);
     }
@@ -86,40 +78,48 @@ export function KitchenDashboard() {
   const inProgressCount = orders["in-progress"]?.length ?? 0;
 
   return (
-    <div className="min-h-full bg-[#0c0a09] text-stone-100">
-      <header className="border-b border-stone-800 bg-stone-950/80 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-4 sm:px-6">
+    <div className="min-h-full bg-muted/40">
+      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <span className="text-2xl" aria-hidden>
-              🍣
-            </span>
+            <div className="flex size-9 items-center justify-center rounded-lg border bg-card">
+              <Activity className="size-4 text-primary" />
+            </div>
             <div>
-              <h1 className="text-lg font-bold tracking-tight text-amber-50 sm:text-xl">
+              <h1 className="text-base font-semibold tracking-tight sm:text-lg">
                 Sushi Kitchen
               </h1>
-              <p className="text-xs text-stone-500">Live order dashboard</p>
+              <p className="text-xs text-muted-foreground">
+                Order management dashboard
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span
-              className={`inline-flex h-2 w-2 rounded-full ${
-                connected ? "bg-emerald-400" : "bg-rose-500 animate-pulse"
-              }`}
-            />
-            <span className="text-xs text-stone-400">
-              {connected ? "Backend connected" : "Backend unreachable"}
-            </span>
+            <ModeToggle />
+            <Badge
+              variant={connected ? "secondary" : "destructive"}
+              className="gap-1.5"
+            >
+              {connected ? (
+                <Wifi className="size-3" />
+              ) : (
+                <WifiOff className="size-3" />
+              )}
+              {connected ? "Connected" : "Offline"}
+            </Badge>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1600px] space-y-6 px-4 py-6 sm:px-6">
-        <div className="grid gap-4 lg:grid-cols-3">
+      <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6">
+        <div className="grid shrink-0 gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <NewOrderForm onSubmit={handleCreate} disabled={!connected} />
           </div>
           <ChefStation activeCount={inProgressCount} />
         </div>
+
+        <Separator />
 
         <OrderBoard
           orders={orders}
@@ -129,10 +129,14 @@ export function KitchenDashboard() {
           onCancel={(id) => runAction(id, () => cancelOrder(id))}
         />
 
-        <AnalyticsPanel data={analytics} loading={connected} />
-      </main>
+        <Separator />
 
-      <ToastStack toasts={toasts} onDismiss={dismissToast} />
+        <AnalyticsSection
+          data={analytics}
+          orders={orders}
+          loading={connected}
+        />
+      </main>
     </div>
   );
 }

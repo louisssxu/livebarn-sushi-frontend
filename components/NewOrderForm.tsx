@@ -1,6 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SUSHI_MENU } from "@/lib/constants";
 
 interface NewOrderFormProps {
@@ -23,37 +39,47 @@ export function NewOrderForm({ onSubmit, disabled }: NewOrderFormProps) {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-xl border border-stone-700/60 bg-stone-900/80 p-5"
-    >
-      <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-amber-400/90">
-        New Order
-      </h2>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <label className="flex flex-1 flex-col gap-1.5">
-          <span className="text-xs text-stone-400">Sushi</span>
-          <select
-            value={sushiName}
-            onChange={(e) => setSushiName(e.target.value)}
-            disabled={disabled || submitting}
-            className="rounded-lg border border-stone-600 bg-stone-800 px-3 py-2.5 text-stone-100 outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/30 disabled:opacity-50"
-          >
-            {SUSHI_MENU.map((item) => (
-              <option key={item.name} value={item.name}>
-                {item.name} ({item.timeToMake}s)
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="submit"
-          disabled={disabled || submitting}
-          className="rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-semibold text-stone-950 transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+    <Card>
+      <CardHeader>
+        <CardTitle>New order</CardTitle>
+        <CardDescription>Select a roll and submit to the kitchen queue.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-4 sm:flex-row sm:items-end"
         >
-          {submitting ? "Placing…" : "Place Order"}
-        </button>
-      </div>
-    </form>
+          <div className="flex flex-1 flex-col gap-2">
+            <label htmlFor="sushi-select" className="text-sm font-medium">
+              Menu item
+            </label>
+            <Select
+              value={sushiName}
+              onValueChange={(value) => setSushiName(value as string)}
+              disabled={disabled || submitting}
+            >
+              <SelectTrigger id="sushi-select" className="w-full">
+                <SelectValue placeholder="Select sushi" />
+              </SelectTrigger>
+              <SelectContent>
+                {SUSHI_MENU.map((item) => (
+                  <SelectItem key={item.name} value={item.name}>
+                    {item.name} · {item.timeToMake}s prep
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            type="submit"
+            disabled={disabled || submitting}
+            className="sm:min-w-32"
+          >
+            <Plus data-icon="inline-start" />
+            {submitting ? "Placing…" : "Place order"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
